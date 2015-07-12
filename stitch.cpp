@@ -77,13 +77,14 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
     matcher.knnMatch(objectDescriptors,imageDescriptors,matches,2);
 
 
-	/* FLANN interface
-	flann::Index tree(imageDescriptors,flann::HierarchicalClusteringIndexParams(32,cvflann::FLANN_CENTERS_KMEANSPP,4,100),cvflann::FLANN_DIST_HAMMING ); 
+	// FLANN interface
+	/*
+	flann::Index tree(imageDescriptors,flann::HierarchicalClusteringIndexParams(32,cvflann::FLANN_CENTERS_KMEANSPP,4,100),cvflann::FLANN_DIST_L2 ); 
 	Mat indices, dists;  
 	vector< vector<DMatch> > matches;
 	tree.knnSearch(objectDescriptors, indices, dists, 2, cv::flann::SearchParams());
-
-	*/
+*/
+	
 
     vector<DMatch> good_matches;
     vector< std::pair<int,float> > match_ratios;
@@ -98,6 +99,7 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	 		good_matches.push_back( matches[i][0]); 
 
 	 }
+	/*
 	if (good_matches.size() < 4)
 	 {
 	 	good_matches.clear();
@@ -108,18 +110,21 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	 	}
 
 	 }
-	/*  FLANN interface
+	 */
+	// FLANN interface
+	 /*
 	for( int i = 0; i < objectDescriptors.rows; i++ )
 	 { 
 	 	
-	 	//if (dists.at<float>(i,0) > dists.at<float>(i,1)*0.6) continue;
+	 	if (dists.at<float>(i,0) > dists.at<float>(i,1)*0.6) continue;
 	 	
-	 		//DMatch match(i,indices.at<int>(i,0),dists.at<float>(i,0));
+	 		DMatch match(i,indices.at<int>(i,0),dists.at<float>(i,0));
 	 		//printf("i: %d\nquery:%d\n",i,match.queryIdx);
 	 		good_matches.push_back(match); 
 
 	 }
-	*/
+	 */
+	
 	 cout << "Good matches: " << good_matches.size() << "\n";
 	 std::vector< Point2f > obj;
 	 std::vector< Point2f > img;
@@ -210,34 +215,14 @@ int main(int argc, char** argv)
 
 
 
-		vector<Mat> channels_obj;
-		vector<Mat> channels_img;
-
-		split(color_object_mat,channels_obj);
-		split(color_image_mat,channels_img);
-
-		double med_0 = median(channels_obj[0]) - median(channels_img[0]);
-		double med_1 = median(channels_obj[1]) - median(channels_img[1]);
-		double med_2 = median(channels_obj[2]) - median(channels_img[2]);
-
-		add(Scalar(0),channels_img[0],channels_img[0]);
-		add(Scalar(0),channels_img[1],channels_img[1]);
-		add(Scalar(0),channels_img[2],channels_img[2]);
-
-
-
-
-		merge(channels_obj, color_object_mat);
-		merge(channels_img, color_image_mat);
-
 
 		cvtColor( color_object_mat, object_mat, CV_BGR2GRAY );
 		cvtColor( color_image_mat, image_mat, CV_BGR2GRAY );
 
 
 
-		equalizeHist( object_mat, object_mat );
-		equalizeHist( image_mat, image_mat );
+		//equalizeHist( object_mat, object_mat );
+		//equalizeHist( image_mat, image_mat );
 		//GaussianBlur(object_mat, object_mat,Size(3,3),0,0);
 		//GaussianBlur(image_mat, image_mat,Size(3,3),0,0);
 
@@ -274,10 +259,10 @@ int main(int argc, char** argv)
 	    int i;
 
    		vector<KeyPoint> keypoints_object,keypoints_image;
-
-   		Ptr<FeatureDetector> detector = FeatureDetector::create("GridSURF");
-	    detector->detect(object_mat,keypoints_object,color_object_mat_mask);
-	    detector->detect(image_mat,keypoints_image);
+   		Ptr<FeatureDetector> detector = FeatureDetector::create("SURF");
+   		GridAdaptedFeatureDetector grid_detector(detector,5000,8,8);
+	    grid_detector.detect(object_mat,keypoints_object,color_object_mat_mask);
+	    grid_detector.detect(image_mat,keypoints_image);
 
 
 
@@ -295,7 +280,7 @@ int main(int argc, char** argv)
 	    extractor->compute(color_image_mat,keypoints_image,descriptors_image);
 	    printf("Image Descriptors: %d\n", descriptors_image.rows);
 	    double t2 = (double)getTickCount();
-		printf( "Extraction time = %gms\n", (t2-t1) /(getTickFrequency()*1000.));
+		printf( "Extraction time = %gs\n", (t2-t1) /(getTickFrequency()));
 
 
 		Point src_corners[4] = {Point(0,0), Point(color_object_mat.cols,0), Point(color_object_mat.cols, color_object_mat.rows), Point(0, color_object_mat.rows)};
@@ -404,7 +389,7 @@ int main(int argc, char** argv)
 			y2 = abs(y_offset);
 			y1 = 0;
 			cout<<"image 1 on top"<<endl;
-			h = max(color_image_mat.cols + y2, mbr.height);
+			h = max(color_image_mat.rows + y2, mbr.height);
 		}
 
 		if(x_offset >0) 
@@ -420,11 +405,12 @@ int main(int argc, char** argv)
 			x2 = abs(x_offset);
 			x1 = 0;
 			cout<<"image 1 on left"<<endl;
-			w = max(color_image_mat.rows + x2, mbr.width);
+			w = max(color_image_mat.cols + x2, mbr.width);
 		}
 		Size outSize = Size(w,h);
 		cout<<"outsize: "<<outSize.width<<" x "<<outSize.height<<endl;
 		cout<<"rect2size: "<<rectifiedImage2.cols<<" x "<<rectifiedImage2.rows<<endl;
+		cout<<"colormatsize: "<<color_image_mat.cols<<" x"<<color_image_mat.rows<<endl;
 
 		Mat comboImage = Mat::zeros(outSize,CV_8UC3);
 
@@ -466,7 +452,7 @@ int main(int argc, char** argv)
 	   	{
 		   	imwrite(output_filename.c_str(), comboImage );
 			double t3 = (double)getTickCount();
-			printf( "Total elapsed time = %gms\n", (t3-t0) /(getTickFrequency()*1000.));
+			printf( "Total elapsed time = %gs\n", (t3-t0) /(getTickFrequency()));
 			break;
 
 	   	}
