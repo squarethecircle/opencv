@@ -26,7 +26,7 @@ using namespace cv::ocl;
 
 
 
-double median( cv::Mat channel )
+double median( Mat channel )
     {
         double m = (channel.rows*channel.cols) / 2;
         int bin = 0;
@@ -42,7 +42,7 @@ double median( cv::Mat channel )
  
         for ( int i = 0; i < histSize && med < 0.0; ++i )
         {
-            bin += round( hist.at< float >( i ) );
+            bin += floor( hist.at< float >( i ) + 0.5 );
             if ( bin > m && med < 0.0 )
                 med = i;
         }
@@ -86,7 +86,7 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	*/
 
     vector<DMatch> good_matches;
-    vector<std::pair<int,float>> match_ratios;
+    vector< std::pair<int,float> > match_ratios;
 
     for( int i = 0; i < objectDescriptors.rows; i++ )
 	 { 
@@ -134,12 +134,15 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	for( int i = 0; i < 4; i++ )
 	    {
 		   	double x = src_corners[i].x, y = src_corners[i].y;
-		   	vector<double> init_pts = {x,y,1};
+		   	vector<double> init_pts;
+		   	init_pts.push_back(x);
+		   	init_pts.push_back(y);
+		   	init_pts.push_back(1);
 
 		    double Z = 1./homography.row(2).dot(init_pts);
 	        double X = (homography.row(0).dot(init_pts))*Z;
 	        double Y = (homography.row(1).dot(init_pts))*Z;
-	        dst_corners[i] = Point(round(X), round(Y));
+	        dst_corners[i] = Point(floor(X+0.5), floor(Y+0.5));
 	    }
     return homography;
 }
@@ -189,13 +192,13 @@ int main(int argc, char** argv)
 	        {{255,0,255}},
 	        {{255,255,255}}
 	    };
-	 double t0 = (double)cvGetTickCount();
+	 double t0 = (double)getTickCount();
 	 Point past_temp_array[4];
 	 Point temp_array[4];
 
     while(filename_index < argc)
     {
-    	double t1 = (double)cvGetTickCount();
+    	double t1 = (double)getTickCount();
 
 
     	Mat object_mat, image_mat;
@@ -288,8 +291,8 @@ int main(int argc, char** argv)
 	    printf("Object Descriptors: %d\n", descriptors_object.rows);
 	    extractor->compute(color_image_mat,keypoints_image,descriptors_image);
 	    printf("Image Descriptors: %d\n", descriptors_image.rows);
-	    double t2 = (double)cvGetTickCount();
-		printf( "Extraction time = %gms\n", (t2-t1) /(cvGetTickFrequency()*1000.));
+	    double t2 = (double)getTickCount();
+		printf( "Extraction time = %gms\n", (t2-t1) /(getTickFrequency()*1000.));
 
 
 		Point src_corners[4] = {Point(0,0), Point(color_object_mat.cols,0), Point(color_object_mat.cols, color_object_mat.rows), Point(0, color_object_mat.rows)};
@@ -354,12 +357,15 @@ int main(int argc, char** argv)
 		for( i = 0; i < 4; i++ )
 	    {
 		   	double x = src_corners[i].x, y = src_corners[i].y;
-		   	vector<double> init_pts = {x,y,1};
+		   	vector<double> init_pts;
+		   	init_pts.push_back(x);
+		   	init_pts.push_back(y);
+		   	init_pts.push_back(1);
 
 		    double Z = 1./H_combo.row(2).dot(init_pts);
 	        double X = (H_combo.row(0).dot(init_pts))*Z;
 	        double Y = (H_combo.row(1).dot(init_pts))*Z;
-	        dst_corners[i] = Point(round(X), round(Y));
+	        dst_corners[i] = Point(floor(X+0.5), floor(Y+0.5));
 	    }
 		
 
