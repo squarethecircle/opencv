@@ -154,6 +154,9 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  	initModule_nonfree();
+
+
     const char* object_filename = argv[1];
     const char* scene_filename = argv[2];
     int filename_index = 3;
