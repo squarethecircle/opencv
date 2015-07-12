@@ -21,14 +21,24 @@ using namespace cv;
 
 int main(int argc, char** argv)
 {
-	  if (argc < 2 || argc > 3) {
-    printf("Usage:\n\tndvi <input> <output>\n");
+	  if (argc < 2 || argc > 4) {
+    printf("Usage:\n\tndvi <input> <output> [scale]\n");
     exit(1);
   }
 
 	//Load filename arguments or use defaults
     const char* photo = argv[1];
 	const char* photo_out = argv[2];
+	const char* scale_str = (argc == 4) ? argv[3] : "0";
+	double scale = 0;
+	int equalize = 1;
+	if (strcmp(scale_str,"0"))
+	{
+		scale = atof(scale_str);
+		equalize = 0;
+	}
+
+
    	Mat image = imread(photo);
    	Mat ndvi = Mat(image.size(),CV_32FC1);
 
@@ -40,12 +50,15 @@ int main(int argc, char** argv)
             float b = (float) intensity.val[0];
             float g = (float) intensity.val[1];
             float r = (float) intensity.val[2];
-            ndvi.at<float>(i,j) = (r - b)/(r + b);
+            float val = (r - b)/(r + b);
+            if (!equalize) val *= scale;
+            ndvi.at<float>(i,j) = val;
+
      }
 	}
 	Mat ndvi_flat;
 	ndvi.convertTo(ndvi_flat,CV_8U,255.0);
-	equalizeHist(ndvi_flat,ndvi_flat);
+	if (equalize) equalizeHist(ndvi_flat,ndvi_flat);
 	Mat cm_ndvi;
 	applyColorMap(ndvi_flat,cm_ndvi,COLORMAP_JET);
 
