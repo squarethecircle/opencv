@@ -220,9 +220,9 @@ int main(int argc, char** argv)
 		double med_1 = median(channels_obj[1]) - median(channels_img[1]);
 		double med_2 = median(channels_obj[2]) - median(channels_img[2]);
 
-		add(Scalar(med_0),channels_img[0],channels_img[0]);
-		add(Scalar(med_1),channels_img[1],channels_img[1]);
-		add(Scalar(med_2),channels_img[2],channels_img[2]);
+		add(Scalar(0),channels_img[0],channels_img[0]);
+		add(Scalar(0),channels_img[1],channels_img[1]);
+		add(Scalar(0),channels_img[2],channels_img[2]);
 
 
 
