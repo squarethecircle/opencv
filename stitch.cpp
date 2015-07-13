@@ -67,11 +67,11 @@ void printHomography(Mat H)
 
 Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & objectDescriptors,
                     const vector<KeyPoint> & imageKeypoints, const Mat & imageDescriptors,
-                    Point src_corners[4], Point dst_corners[4])
+                    Point src_corners[4], Point dst_corners[4],const Mat & color_object_mat, const Mat & color_image_mat)
 {
 
 
-
+	Mat color_object_mat_float, color_image_mat_float;
    	BFMatcher matcher(NORM_HAMMING);
     vector< vector<DMatch> > matches;
     matcher.knnMatch(objectDescriptors,imageDescriptors,matches,2);
@@ -129,11 +129,35 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	 std::vector< Point2f > obj;
 	 std::vector< Point2f > img;
 	 
+	Vec3f obj_sum(0,0,0);
+	Vec3f img_sum(0,0,0);
+	color_object_mat.convertTo(color_object_mat_float,CV_32FC3,(1.0/255));
+	color_image_mat.convertTo(color_image_mat_float,CV_32FC3,(1.0/255));
+
+
 	for( int i = 0; i < good_matches.size(); i++ )
 	 {
-		 obj.push_back( objectKeypoints[ good_matches[i].queryIdx ].pt );
-		 img.push_back( imageKeypoints[ good_matches[i].trainIdx ].pt );
+	 	 Point2f obj_pt = objectKeypoints[ good_matches[i].queryIdx ].pt;
+	 	 Point2f img_pt = imageKeypoints[ good_matches[i].trainIdx ].pt;
+	 	 obj_sum += color_object_mat_float.at<Vec3f>((int)obj_pt.y, (int)obj_pt.x);
+	 	 img_sum += color_image_mat_float.at<Vec3f>((int)img_pt.y, (int)img_pt.x);
+		 obj.push_back(obj_pt);
+		 img.push_back(img_pt);
 	 }
+
+	 float bscale = obj_sum[0]/img_sum[0];
+	 float gscale = obj_sum[1]/img_sum[1];
+	 float rscale = obj_sum[2]/img_sum[2];
+	 cout << "BLUE: " <<  (bscale) << endl;
+	 cout << "GREEN: " << (gscale) << endl;
+	 cout << "RED: " << (rscale)  << endl;
+
+	 vector<Mat> channels(3);
+	 split(color_image_mat,channels);
+	 channels[0] *= bscale;
+	 channels[1] *= gscale;
+	 channels[2] *= rscale;
+	 merge(channels, color_image_mat);
 
 	Mat homography = findHomography(obj,img, CV_LMEDS);
 	for( int i = 0; i < 4; i++ )
@@ -288,9 +312,8 @@ int main(int argc, char** argv)
 	    
 
 
-
 		Mat H = computeHomography( keypoints_object, descriptors_object, keypoints_image,
-	        descriptors_image, src_corners, dst_corners);
+	        descriptors_image, src_corners, dst_corners,color_object_mat,color_image_mat);
 	    if(!H.empty())
 	    {
 			printHomography(H);
