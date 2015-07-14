@@ -14,6 +14,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cmath>
 #include <string>
 #include <iostream>
 #include <vector>
@@ -154,12 +155,15 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 
 	 vector<Mat> channels(3);
 	 split(color_image_mat,channels);
-	 channels[0] *= bscale;
-	 channels[1] *= gscale;
-	 channels[2] *= rscale;
+	 //channels[0] *= bscale;
+	 //channels[1] *= gscale;
+	 //channels[2] *= rscale;
 	 merge(channels, color_image_mat);
 
-	Mat homography = findHomography(obj,img, CV_LMEDS);
+	Mat homography = estimateRigidTransform(obj, img,false);
+	Mat row = Mat::zeros(1,3,homography.type());
+	row.at<double>(0,2) = 1;
+	homography.push_back(row);
 	for( int i = 0; i < 4; i++ )
 	    {
 		   	double x = src_corners[i].x, y = src_corners[i].y;
@@ -173,7 +177,44 @@ Mat computeHomography( const vector<KeyPoint> & objectKeypoints, const Mat & obj
 	        double Y = (homography.row(1).dot(init_pts))*Z;
 	        dst_corners[i] = Point(floor(X+0.5), floor(Y+0.5));
 	    }
-    return homography;
+	return homography;
+	/*
+	std::vector< Point2f > obj2;
+	std::vector< Point2f > img2;
+    obj2.push_back(src_corners[0]);
+    obj2.push_back(src_corners[1]);
+    obj2.push_back(src_corners[2]);
+    img2.push_back(dst_corners[0]);
+    img2.push_back(dst_corners[1]);
+
+    float dy = dst_corners[1].y-dst_corners[0].y;
+    float dx = dst_corners[1].x-dst_corners[0].x;
+    float dist = norm(Point2f(dy,dx));
+    float ratio = dist/color_object_mat.cols;
+    Point2f corner = src_corners[2]*ratio;
+    float theta = atan2f(dy,dx);
+    Point2f corner2;
+	corner2.x =corner.x*cos(theta) + corner.y*sin(theta);
+	corner2.y=(-1)*corner.x*sin(theta) + corner.y*cos(theta);
+	img2.push_back(corner2);
+    
+    Mat homography2 = getAffineTransform(obj2,img2);
+    homography2.push_back(row);
+    	for( int i = 0; i < 4; i++ )
+	    {
+		   	double x = src_corners[i].x, y = src_corners[i].y;
+		   	vector<double> init_pts;
+		   	init_pts.push_back(x);
+		   	init_pts.push_back(y);
+		   	init_pts.push_back(1);
+
+		    double Z = 1./homography2.row(2).dot(init_pts);
+	        double X = (homography2.row(0).dot(init_pts))*Z;
+	        double Y = (homography2.row(1).dot(init_pts))*Z;
+	        dst_corners[i] = Point(floor(X+0.5), floor(Y+0.5));
+	    }
+    return homography2;
+    */
 }
 
 int main(int argc, char** argv)
@@ -210,20 +251,6 @@ int main(int argc, char** argv)
 	Mat color_object_mat_mask = Mat(color_object_mat.rows, color_object_mat.cols, CV_8UC1, Scalar(1));
 
 
-
-
-	 static CvScalar colors[] = 
-	    {
-	        {{0,0,255}},
-	        {{0,128,255}},
-	        {{0,255,255}},
-	        {{0,255,0}},
-	        {{255,128,0}},
-	        {{255,255,0}},
-	        {{255,0,0}},
-	        {{255,0,255}},
-	        {{255,255,255}}
-	    };
 	 double t0 = (double)getTickCount();
 	 Point past_temp_array[4];
 	 Point temp_array[4];
@@ -284,7 +311,7 @@ int main(int argc, char** argv)
 
    		vector<KeyPoint> keypoints_object,keypoints_image;
    		Ptr<FeatureDetector> detector = FeatureDetector::create("SURF");
-   		GridAdaptedFeatureDetector grid_detector(detector,5000,8,8);
+   		GridAdaptedFeatureDetector grid_detector(detector,15000,8,8);
 	    grid_detector.detect(object_mat,keypoints_object,color_object_mat_mask);
 	    grid_detector.detect(image_mat,keypoints_image);
 
